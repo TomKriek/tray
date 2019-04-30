@@ -90,7 +90,7 @@ build qz tray apple:
   function compile()
   {
     ant $1 -Dauthcert.use="cert.pem"
-    #zip -r qz-tray.zip out/
+    zip -r qz-tray.zip out/
   }
 
 before_script:
