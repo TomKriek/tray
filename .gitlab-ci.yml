@@ -1,0 +1,97 @@
+
+image: ubuntu:18.04
+
+variables:
+  COUNTRY_NAME: "${CSR_COUNTRY_NAME}"
+  STATE: "${STATE}"
+  LOCALITY: "${LOCALITY}"
+  ORGANIZATION: "${ORGANIZATION}"
+  ORGANIZATION_UNIT: "${ORGANIZATION_UNIT}"
+  COMMON_NAME: "${COMMON_NAME}"
+  E_MAIL_ADDRESS: "${E_MAIL_ADDRESS}"
+
+stages:
+  - build
+
+# Windows
+build qz tray windows:
+  stage: build
+  variables:
+    VERSION: nsis
+  script:
+    - install_dependencies
+    - create_certs
+    - compile ${VERSION}
+  artifacts:
+    paths:
+      - qz-tray.zip
+    expire_in: 1 week
+  only:
+    refs:
+      - windows
+
+build qz tray linux:
+  stage: build
+  variables:
+    VERSION: makeself
+  script:
+    - install_dependencies
+    - create_certs
+    - compile ${VERSION}
+  artifacts:
+    paths:
+      - qz-tray.zip
+    expire_in: 1 week
+  only:
+    refs:
+      - linux
+
+build qz tray apple:
+  stage: build
+  variables:
+    VERSION: pkgbuild
+  script:
+    - install_dependencies
+    - create_certs
+    - compile ${VERSION}
+  artifacts:
+    paths:
+      - qz-tray.zip
+    expire_in: 1 week
+  only:
+    refs:
+      - apple
+
+##  ##   ##   ##   ##   ##
+##    DEVOPS SCRIPTS    ##
+##  ##   ##   ##   ##   ##
+.devops_scripts: &devops_scripts |
+  function install_dependencies()
+  {
+    apt-get update
+    apt-get install software-properties-common -y
+    add-apt-repository ppa:linuxuprising/java
+    apt-get update
+    echo oracle-java11-installer shared/accepted-oracle-license-v1-2 select true | /usr/bin/debconf-set-selections
+    apt-get install git ant nsis makeself oracle-java11-installer oracle-java11-set-default zip unzip -y
+    java -version
+    javac -version
+  }
+
+  function create_certs()
+  {
+    apt-get update
+    apt-get install openssl -y
+    openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 11499 -nodes \
+    -subj "/C=${COUNTRY_NAME}/ST=${STATE}/L=${LOCALITY}/O=${ORGANIZATION}/OU=${ORGANIZATION_UNIT}/CN=${COMMON_NAME}/emailAddress=${E_MAIL_ADDRESS}"
+    openssl pkcs12 -inkey key.pem -in cert.pem -export -out privateKey.pfx -password pass:
+  }
+
+  function compile()
+  {
+    ant $1 -Dauthcert.use="cert.pem"
+    #zip -r qz-tray.zip out/
+  }
+
+before_script:
+  - *devops_scripts
